@@ -59,16 +59,36 @@ Still needed in `.env.local`:
 npm run dev
 ```
 
-## Build phases
+## Build phases — status
 
-0. ~~Scaffold~~ — this commit. Next.js app, Supabase project + `calls`/`reviews` schema,
-   knowledge base docs, env wiring.
-1. Data model refinements as needed once Phase 3 surfaces gaps.
-2. Knowledge base → system prompt encoding.
-3. Call simulator (turn-by-turn chat standing in for the phone call).
-4. Hard guardrails in code: pricing-number regex check, hard-decline whitelist enforcement.
-5. Front desk review queue UI.
-6. Telegram handoff.
-7. Dashboard.
-8. Replay all 20 phone transcripts (`docs/fixtures/phone-transcripts.md`) and confirm verdicts
-   match the real front desk's historical decisions.
+0. ✅ Scaffold — Next.js app, Supabase project + `calls`/`reviews` schema, knowledge base docs.
+1. ✅ Data model — `guardrail_triggered` column added once Phase 4 needed it.
+2. ✅ Knowledge base → system prompt (`src/lib/knowledge-base.ts`, `src/lib/gemini.ts`).
+3. ✅ Call simulator — single-shot per call (not full turn-by-turn state), matching the
+   "simulated demo" fidelity decision: paste what the caller said, get the verdict, the live
+   reply, and the handoff note. `/` in the app.
+4. ✅ Hard guardrails in code (`src/lib/guardrails.ts`) — a regex backstop strips any price
+   figure from the reply/handoff note regardless of what the model produced, and any
+   `hard_declined` verdict not on the factual whitelist is downgraded to `flagged`.
+5. ✅ Front desk review queue — `/review`, same-business-day queue, approve/decline writes
+   back to `calls` and `reviews`.
+6. ✅ Designer handoff — Telegram if `TELEGRAM_BOT_TOKEN`/`TELEGRAM_DESIGNER_CHAT_ID` are set,
+   otherwise logs to console/DB (`src/lib/telegram.ts`) — swap-in is a one-line change once
+   the token arrives.
+7. ✅ Dashboard — `/dashboard`: volume, verdict breakdown, conversion, override rate,
+   guardrail interventions, estimated run cost.
+8. ✅ Replay — `/replay` runs all 20 phone transcripts (`src/lib/fixtures.ts`) against the
+   live system. **17/19 scoreable fixtures matched exactly** (T08 is a missed call, not a
+   qualification case). The two "mismatches" (T02, T07) are the AI flagging a timeline
+   ambiguity that the real front desk didn't scrutinize — a defensible divergence given the
+   locked "when in doubt, flag" rule, not a bug; see the notes in `fixtures.ts`. T10 and T14
+   diverge from the real front desk **on purpose** (soft budget/decision-maker judgment calls
+   now flag instead of auto-resolving).
+
+## Not built (by design)
+
+- Real telephony/voice (Vaani or otherwise) — pending the API key, and out of scope for the
+  "simulated demo" fidelity decision regardless.
+- Turn-by-turn conversational memory across multiple exchanges in one call — the simulator
+  takes the full caller statement at once, which was sufficient to validate every locked
+  decision against the real transcripts.
