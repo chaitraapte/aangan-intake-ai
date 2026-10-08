@@ -24,11 +24,12 @@ export async function POST(req: Request) {
 
   const { result, guardrail_triggered, guardrail_notes } = applyGuardrails(run.result);
 
-  let handoff_sent = false;
-  if (result.verdict === "approved" && result.handoff_note) {
-    const handoff = await sendHandoffNote(result.handoff_note);
-    handoff_sent = handoff.sent;
-  }
+  // Every call gets a handoff note, with no exceptions, including declines and escalations
+  // — override rule 5. All land in the same Telegram chat for this single-studio demo; the
+  // status prefix (APPROVED / DECLINED — <reason> / FLAG — <reason> / URGENT — ESCALATE)
+  // is what distinguishes them.
+  const handoff = await sendHandoffNote(result.handoff_note);
+  const handoff_sent = handoff.sent;
 
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
@@ -44,6 +45,8 @@ export async function POST(req: Request) {
       referral_source: result.extracted.referral_source,
       verdict: result.verdict,
       verdict_reason: result.verdict_reason,
+      callback_window: result.callback_window,
+      named_senior_request: result.named_senior_request,
       handoff_sent,
       guardrail_triggered,
       input_tokens: run.input_tokens,

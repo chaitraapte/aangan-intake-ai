@@ -4,12 +4,14 @@ export type CallType = "new_enquiry" | "existing_client_escalation";
 
 // Whitelist of factual, binary reasons the AI may use for an autonomous decline.
 // Anything outside this list must downgrade to "flagged" in code — see guardrails.ts.
+// Matches the "Not offered" / "Checks to run" lists in the Vaani voice-assistant spec.
 export const HARD_DECLINE_REASONS = [
   "outside_service_area",
-  "below_min_commercial_size",
-  "design_only_no_execution",
-  "out_of_scope_category",
-  "timeline_infeasible",
+  "out_of_scope_category", // hospitality, gym/fitness, retail
+  "design_or_advice_only_no_execution", // includes standalone decor advice, furniture sourcing, Vastu-only
+  "structural_or_architectural_work_requested", // wall moves, permits — never offered
+  "commercial_size_out_of_range", // below 500 sq ft or above 3,000 sq ft
+  "timeline_infeasible", // required completion in under 6 weeks from today
 ] as const;
 
 export type HardDeclineReason = (typeof HARD_DECLINE_REASONS)[number];
@@ -30,7 +32,17 @@ export interface IntakeResult {
   verdict_reason: string;
   extracted: ExtractedFields;
   caller_reply: string;
-  handoff_note: string | null;
+  // Every call gets a handoff note, with no exceptions, including declines — per the
+  // Vaani spec's override rule 5. The status prefix ("APPROVED" / "DECLINED — <reason>" /
+  // "FLAG — <reason>" / "URGENT — ESCALATE") is composed in code, not left to the model.
+  handoff_note: string;
+  // Only meaningful when verdict is "flagged" — a concrete callback window (e.g. "within
+  // 2 business hours", "by 10:30am tomorrow"), computed in code from the current time,
+  // not guessed by the model.
+  callback_window: string | null;
+  // Captures caller wording verbatim when they explicitly ask for Nikhil or a named
+  // senior person — must never be softened to "someone will call" (override rule 3).
+  named_senior_request: string | null;
 }
 
 export interface GuardrailOutcome {
@@ -52,6 +64,8 @@ export interface CallRecord {
   referral_source: string | null;
   verdict: Verdict;
   verdict_reason: string;
+  callback_window: string | null;
+  named_senior_request: string | null;
   handoff_sent: boolean;
   guardrail_triggered: boolean;
   input_tokens: number | null;

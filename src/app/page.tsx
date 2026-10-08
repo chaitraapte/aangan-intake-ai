@@ -97,7 +97,7 @@ export default function Home() {
               </div>
               {response.handoff_note && (
                 <div>
-                  <span className="font-semibold">Handoff note (sent to designer):</span>
+                  <span className="font-semibold">Handoff note (every call gets one):</span>
                   <pre className="mt-1 whitespace-pre-wrap">{response.handoff_note}</pre>
                 </div>
               )}

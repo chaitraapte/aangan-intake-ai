@@ -1,37 +1,43 @@
-# Aangan Studio — Service Scope (PROVISIONAL)
+# Aangan Studio — Service Scope
 
-> ⚠️ **Not the real file.** The actual `services.md` from Nikhil's seed data was never retrieved (Google Drive connector permission issue). Everything below is inferred from the 20 phone transcripts in `Aangan_Sep 2026_Enquiries.pdf` — treat it as a draft to verify against the real document before trusting it in production logic, especially the hard-coded size/timeline thresholds.
+> Source: the Vaani voice-assistant system prompt (received 2026-10-08) — this supersedes
+> the earlier provisional version inferred from transcripts. The prompt references a fuller
+> "Call Rubric" decision table that wasn't included in what was shared — if edge cases don't
+> cleanly map to the rules below, that table is the thing still missing, not a gap in this doc.
 
 ## What Aangan does
 
-- Full-service interior design **and execution** together (design-only / advisory visits are declined — see T04)
-- Residential: full-home or partial (room-level) redesigns
-- Commercial: office / studio fitouts
+- End-to-end interior design **with execution**, for homes and small offices — never
+  advice-only, never a design-only consultation.
+- Residential: full home (2BHK+), partial home (a full floor or 2+ rooms), or a single room
+  — always a complete redesign with execution.
+- Commercial: office / clinic / studio, roughly 500 to 3,000 sq ft.
 
-## Service area
+## Service area (exhaustive — treat anything not listed as outside area)
 
-- Pune and PCMC only (T03: Nashik caller declined — "we don't have the vendor network")
-- Talegaon Dabhade treated as borderline-acceptable in the one example seen (F03) — unconfirmed as a hard rule
+- **Pune city**: Kothrud, Baner, Aundh, Wakad, Koregaon Park, Kalyani Nagar, Viman Nagar,
+  Hadapsar, Magarpatta, NIBM, Kondhwa, Undri, Shivane, Warje, Erandwane, Deccan, and
+  adjoining areas.
+- **PCMC**: Pimpri, Chinchwad, Pimple Saudagar, Pimple Nilakh, Ravet, Hinjewadi.
+- **Not served**: Talegaon, Lonavala, Nashik, Mumbai, or any other city.
 
-## Minimum project size (inferred, not confirmed)
+## Not offered (hard exclusions, never a judgment call)
 
-- Commercial: ~500 sq ft minimum (T18: 180 sq ft coworking pod declined; W04/T06 at 800–1,200 sq ft accepted)
-- Commercial: ~3,000 sq ft maximum before needing escalation/special handling (T06, W04)
-- Residential: no explicit floor seen in the transcripts — smallest accepted was a 550 sq ft 1BHK (T10), declined on budget grounds, not size
+- Structural or architectural work — no wall moves, no permits
+- Decor or styling advice without execution
+- Standalone furniture sourcing with no design project attached
+- Standalone Vastu consultation (Vastu is incorporated into designs, never sold alone)
+- Retail, hospitality (restaurants, hotels), gyms or fitness spaces
+- Commercial projects below 500 sq ft or above 3,000 sq ft
 
-## Timeline feasibility (inferred)
+## Timeline feasibility
 
-- Design phase alone takes 3–4 weeks; full room execution takes 8–10 weeks minimum (T07)
-- A start date less than ~3 weeks out is declined regardless of scope
+- Design phase: 3–4 weeks. Execution: 8–16 weeks depending on size and site readiness.
+- Cannot start execution on anything that must be ready in **under 6 weeks from today** —
+  this is the hard floor, not the total design+execution duration.
 
-## Out-of-scope categories (seen directly in transcripts)
+## Rented homes
 
-- Restaurant / hospitality interiors (T19) — different compliance and material requirements
-- Gym / fitness spaces (W07) — specialized equipment/flooring requirements
-- Projects outside Pune/PCMC (T03)
-
-## Still needed from the real file
-
-- Exact minimum/maximum sq ft thresholds (residential and commercial)
-- Exact timeline floor in writing (the transcripts only show it applied verbally)
-- Any other excluded categories not represented in this month's 20 transcripts
+Fine, as long as no structural or wall changes are needed and the landlord has agreed —
+ask directly whenever a caller mentions renting. Landlord agreement unconfirmed is a reason
+to flag, not to auto-decline or auto-approve.

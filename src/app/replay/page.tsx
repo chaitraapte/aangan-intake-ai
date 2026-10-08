@@ -32,7 +32,7 @@ async function runReplay(): Promise<RowResult[]> {
     }
 
     try {
-      const run = await runIntake(fixture.transcript);
+      const run = await runIntake(fixture.transcript, new Date(fixture.callDate));
       const { result } = applyGuardrails(run.result);
       rows.push({
         id: fixture.id,

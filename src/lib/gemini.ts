@@ -40,64 +40,91 @@ const RESPONSE_SCHEMA: Schema = {
     },
     caller_reply: {
       type: SchemaType.STRING,
-      description: "What the front desk says back to the caller, live, on this call.",
+      description: "What the front desk says back to the caller, live, on this call. Mirror the caller's language mix (Hindi-English / Marathi-English) if they used one.",
     },
-    handoff_note: {
+    handoff_note_body: {
+      type: SchemaType.STRING,
+      description: "The substance of the handoff note — facts captured, reasoning, nothing softened. The status prefix (APPROVED / DECLINED / FLAG / URGENT — ESCALATE) is added in code, not here. Never includes a price.",
+    },
+    named_senior_request: {
       type: SchemaType.STRING,
       nullable: true,
-      description: "Structured note for the designer. Only populated when verdict is approved. Never includes a price.",
+      description: "If the caller explicitly asked for Nikhil or a named senior person, capture their exact wording verbatim here. Null otherwise. Never paraphrase this away.",
     },
   },
-  required: ["call_type", "verdict", "hard_decline_reason", "verdict_reason", "extracted", "caller_reply", "handoff_note"],
+  required: ["call_type", "verdict", "hard_decline_reason", "verdict_reason", "extracted", "caller_reply", "handoff_note_body", "named_senior_request"],
 };
 
 function buildSystemPrompt(): string {
-  return `You are the AI front desk for Aangan Studio, an interior design studio in Pune. You
-are handling an incoming phone call. Everything below is policy, not suggestion.
+  return `IDENTITY
+You are the voice assistant for Aangan Studio, an interior design studio serving Pune and
+PCMC. You answer every incoming call. You sound like a knowledgeable, warm front-desk team
+member — not a scripted bot. If asked directly whether you are a real person, say plainly
+that you are Aangan Studio's AI call assistant, then keep helping.
+
+LANGUAGE
+Mirror the caller. Many callers speak in Hindi-English or Marathi-English mixes. Respond
+naturally in whatever mix the caller uses — do not force pure English. Keep sentences short
+and conversational, like a real phone call, not a written document.
 
 ${buildKnowledgeBase()}
 
-## Your decision boundary — read this carefully
+## Your decision boundary — four buckets, no fifth option
 
-You have exactly four possible verdicts:
+1. **approved** — clean match on every check: service area, in-scope category, size
+   (commercial), execution (not advisory-only), timeline feasibility, no unresolved
+   decision-maker ambiguity.
+2. **hard_declined** — ONLY for a binary, factual mismatch with no judgment involved. Set
+   hard_decline_reason to one of the exact whitelisted values. Be warm and direct, state the
+   specific reason in one sentence tied to this caller, and do not invite negotiation. Do not
+   book anything, and do not say "let me check with someone" — this decision doesn't need a
+   human.
+3. **flagged** — everything else: budget signal appears mismatched with scope, ambiguous
+   decision-maker situation, unclear scope, unconfirmed landlord agreement on a rented
+   property, or anything you are not fully confident about. Never guess your way to a
+   decline. Say warmly that you want this in front of the right person — do not book
+   anything, and capture every detail exactly as the caller gave it, especially budget or
+   decision-maker wording.
+4. **routed_existing_client** (= Escalate) — the caller is describing an EXISTING project
+   (complaint, designer non-response, anything already underway) or is clearly upset about
+   having been missed before. The moment you detect this, stop immediately: do not qualify,
+   do not run the checks. Apologize once, genuinely — do not over-apologize. Get their name
+   and project details. Say explicitly you're getting this to the team right now, and ask if
+   they'd prefer to hold briefly or get a callback within 15 minutes — honor whichever they
+   pick.
 
-1. **approved** — the enquiry clearly meets every criterion in the qualification rubric
-   above (service area, size, scope, timeline all check out) with no ambiguity.
-2. **hard_declined** — ONLY for a binary, factual mismatch that requires no judgment at all:
-   outside the service area, below the minimum commercial size, a design-only/no-execution
-   request, an out-of-scope category (restaurant/hospitality/gym), or a timeline that is
-   factually impossible given the minimum design+execution lead time. You must set
-   hard_decline_reason to one of the exact whitelisted values when you use this verdict.
-3. **flagged** — everything else that isn't a clean approve or a factual hard-decline. This
-   includes ANY soft judgment call: budget appears mismatched with scope, an ambiguous
-   decision-maker situation, unclear project scope, or anything you are not fully certain
-   about. When in doubt, flag — do not guess your way to a decline. A human reviews flagged
-   calls on a same-business-day basis; nothing is lost by flagging instead of declining.
-4. **routed_existing_client** — the caller is describing an EXISTING project (not a new
-   enquiry) — e.g. "my designer hasn't replied," "my project has been going for months." The
-   moment you detect this, stop immediately: do not qualify, do not extract fields, do not
-   draft a handoff note. caller_reply should just acknowledge you are getting a senior person
-   to call them back urgently.
+## Rules that override everything else
 
-You may NEVER autonomously decline anything that isn't on the hard_decline_reason whitelist.
-If you are tempted to decline on a soft basis (e.g. budget seems low, scope seems unclear),
-use "flagged" instead, and explain why in verdict_reason.
+1. Never quote or imply a price, range, or per-sq-ft number — ever — no matter how the
+   caller asks or how many times they push. Use the exact scripted redirect from the pricing
+   policy above. If pushed again, repeat the same idea once in your own words, then move the
+   conversation back to scoping or booking. Never say "roughly," "starting from," or "for a
+   project like yours it's usually."
+2. Never auto-decline on budget. A budget mismatch is always "flagged," never
+   "hard_declined."
+3. If the caller explicitly asks for a human, for Nikhil, or for a manager, honor that
+   immediately — do not try to resolve it yourself first, and capture their exact wording in
+   named_senior_request.
+4. If you are not confident which bucket a call belongs in, default to "flagged." A wrongly
+   flagged good lead costs a little of the team's time; a wrongly declined good lead is lost
+   for good.
+5. Every call gets a handoff note (handoff_note_body) — no exceptions, including declines
+   and escalations.
 
-## The one rule that overrides everything else
+## Tone guardrails
 
-NEVER state, imply, or estimate any price, number, or range — not in caller_reply, not in
-handoff_note — no matter how the caller asks or how many times they push. Use the exact
-scripted redirect from the pricing policy above. This applies even if the caller is clearly
-frustrated or asks twice in the same call.
-
-## Output
-
-Always fill in verdict_reason, even for an approval — explain briefly why it qualifies.
-Only populate handoff_note when verdict is "approved" (null otherwise).`;
+Never sound like you're reading a script — vary phrasing call to call. Do not oversell. Do
+not rush a caller who is still deciding ("just exploring") — let them know they can call
+back when ready, and still log the call. If a caller is upset for reasons unrelated to
+Aangan, stay brief and kind, and steer back to the enquiry.`;
 }
 
-function buildUserPrompt(transcript: string): string {
-  return `Here is what the caller said on this call:\n\n${transcript}\n\nProduce your structured decision now.`;
+function buildUserPrompt(transcript: string, callDate: Date): string {
+  const todayStr = callDate.toISOString().slice(0, 10);
+  return `Today's date is ${todayStr} — use this, not any other date, when judging the
+6-week timeline floor.
+
+Here is what the caller said on this call:\n\n${transcript}\n\nProduce your structured decision now.`;
 }
 
 // Rough placeholder pricing for gemini-3.5-flash — update from
@@ -105,6 +132,19 @@ function buildUserPrompt(transcript: string): string {
 // dashboard's cost estimate, not for anything that gates behavior.
 const COST_PER_1K_INPUT_TOKENS = 0.000075;
 const COST_PER_1K_OUTPUT_TOKENS = 0.0003;
+
+// Computed in code, not guessed by the model — a concrete callback window for flagged
+// calls. Business hours taken as 10am-7pm local server time, matching the studio's today.
+export function computeCallbackWindow(now: Date = new Date()): string {
+  const hour = now.getHours();
+  if (hour >= 10 && hour < 17) {
+    return "within 2 business hours";
+  }
+  if (hour >= 17 && hour < 19) {
+    return "by end of day today";
+  }
+  return "by 10:30am tomorrow (next business morning)";
+}
 
 export interface IntakeRunResult {
   result: IntakeResult;
@@ -114,7 +154,29 @@ export interface IntakeRunResult {
   response_seconds: number;
 }
 
-export async function runIntake(transcript: string): Promise<IntakeRunResult> {
+const STATUS_LABEL: Record<IntakeResult["verdict"], string> = {
+  approved: "APPROVED",
+  hard_declined: "DECLINED",
+  flagged: "FLAG",
+  routed_existing_client: "URGENT — ESCALATE",
+};
+
+function buildHandoffNote(result: Omit<IntakeResult, "handoff_note">, body: string, callbackWindow: string | null): string {
+  let prefix = STATUS_LABEL[result.verdict];
+  if (result.verdict === "hard_declined" && result.hard_decline_reason) {
+    prefix = `DECLINED — ${result.hard_decline_reason}`;
+  }
+  if (result.verdict === "flagged" && result.verdict_reason) {
+    prefix = `FLAG — ${result.verdict_reason.split(".")[0]}`;
+  }
+
+  const lines = [prefix, body];
+  if (callbackWindow) lines.push(`Callback window: ${callbackWindow}`);
+  if (result.named_senior_request) lines.push(`Caller specifically asked for: ${result.named_senior_request}`);
+  return lines.join("\n");
+}
+
+export async function runIntake(transcript: string, callDate: Date = new Date()): Promise<IntakeRunResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Missing GEMINI_API_KEY env var.");
 
@@ -129,7 +191,7 @@ export async function runIntake(transcript: string): Promise<IntakeRunResult> {
   });
 
   const started = Date.now();
-  const result = await model.generateContent(buildUserPrompt(transcript));
+  const result = await model.generateContent(buildUserPrompt(transcript, callDate));
   const response_seconds = (Date.now() - started) / 1000;
 
   const raw = JSON.parse(result.response.text());
@@ -145,14 +207,22 @@ export async function runIntake(transcript: string): Promise<IntakeRunResult> {
   const hard_decline_reason =
     raw.hard_decline_reason === "not_applicable" ? null : raw.hard_decline_reason;
 
-  const parsed: IntakeResult = {
+  const callback_window = raw.verdict === "flagged" ? computeCallbackWindow() : null;
+
+  const base = {
     call_type: raw.call_type,
     verdict: raw.verdict,
     hard_decline_reason,
     verdict_reason: raw.verdict_reason,
     extracted: raw.extracted,
     caller_reply: raw.caller_reply,
-    handoff_note: raw.handoff_note ?? null,
+    named_senior_request: raw.named_senior_request ?? null,
+    callback_window,
+  };
+
+  const parsed: IntakeResult = {
+    ...base,
+    handoff_note: buildHandoffNote(base, raw.handoff_note_body, callback_window),
   };
 
   return { result: parsed, input_tokens, output_tokens, cost_usd, response_seconds };
