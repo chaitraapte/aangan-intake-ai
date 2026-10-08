@@ -18,12 +18,19 @@ export type HardDeclineReason = (typeof HARD_DECLINE_REASONS)[number];
 
 export interface ExtractedFields {
   caller_name: string | null;
+  caller_phone: string | null;
+  caller_email: string | null;
   location: string | null;
   carpet_area_sqft: number | null;
   project_scope: string | null;
   timeline: string | null;
   is_decision_maker: boolean | null;
   referral_source: string | null;
+  // Captured when mentioned, never recited back to the caller (the no-pricing rule still
+  // applies to what the AI SAYS, not to what it's allowed to log for the designer/CRM).
+  budget_signal: string | null;
+  // "site_visit" | "studio_visit" | null — several real transcripts asked this directly.
+  preferred_consultation_mode: string | null;
 }
 
 export interface IntakeResult {
@@ -58,12 +65,16 @@ export interface CallRecord {
   transcript: string;
   call_type: CallType;
   caller_name: string | null;
+  caller_phone: string | null;
+  caller_email: string | null;
   location: string | null;
   carpet_area_sqft: number | null;
   project_scope: string | null;
   timeline: string | null;
   is_decision_maker: boolean | null;
   referral_source: string | null;
+  budget_signal: string | null;
+  preferred_consultation_mode: string | null;
   verdict: Verdict;
   verdict_reason: string;
   callback_window: string | null;

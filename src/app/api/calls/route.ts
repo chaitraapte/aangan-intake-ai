@@ -37,22 +37,27 @@ export async function POST(req: Request) {
   try {
     data = await queryOne<CallRecord>(
       `insert into calls (
-        transcript, call_type, caller_name, location, carpet_area_sqft, project_scope,
-        timeline, is_decision_maker, referral_source, verdict, verdict_reason,
+        transcript, call_type, caller_name, caller_phone, caller_email, location,
+        carpet_area_sqft, project_scope, timeline, is_decision_maker, referral_source,
+        budget_signal, preferred_consultation_mode, verdict, verdict_reason,
         callback_window, named_senior_request, handoff_sent, guardrail_triggered,
         input_tokens, output_tokens, cost_usd, response_seconds
-      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
       returning *`,
       [
         transcript,
         result.call_type,
         result.extracted.caller_name,
+        result.extracted.caller_phone,
+        result.extracted.caller_email,
         result.extracted.location,
         result.extracted.carpet_area_sqft,
         result.extracted.project_scope,
         result.extracted.timeline,
         result.extracted.is_decision_maker,
         result.extracted.referral_source,
+        result.extracted.budget_signal,
+        result.extracted.preferred_consultation_mode,
         result.verdict,
         result.verdict_reason,
         result.callback_window,

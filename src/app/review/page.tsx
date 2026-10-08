@@ -40,6 +40,7 @@ export default async function ReviewPage() {
         {calls.map((call) => (
           <div key={call.id} className="rounded border border-amber-300 bg-amber-50 p-4 flex flex-col gap-2 text-sm">
             <div className="text-xs text-gray-500">{new Date(call.created_at).toLocaleString()}</div>
+            <div><span className="font-semibold">Caller:</span> {call.caller_name ?? "unknown"} — {[call.caller_phone, call.caller_email].filter(Boolean).join(" / ") || "no contact info captured"}</div>
             <div><span className="font-semibold">Transcript:</span> {call.transcript}</div>
             <div><span className="font-semibold">AI&apos;s reasoning:</span> {call.verdict_reason}</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-700">
@@ -47,6 +48,8 @@ export default async function ReviewPage() {
               <div><span className="font-semibold">Size:</span> {call.carpet_area_sqft ?? "—"} sq ft</div>
               <div><span className="font-semibold">Scope:</span> {call.project_scope ?? "—"}</div>
               <div><span className="font-semibold">Timeline:</span> {call.timeline ?? "—"}</div>
+              <div><span className="font-semibold">Budget mentioned:</span> {call.budget_signal ?? "—"}</div>
+              <div><span className="font-semibold">Prefers:</span> {call.preferred_consultation_mode?.replace("_", " ") ?? "—"}</div>
             </div>
             <ReviewActions callId={call.id} />
           </div>

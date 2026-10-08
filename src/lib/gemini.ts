@@ -30,14 +30,26 @@ const RESPONSE_SCHEMA: Schema = {
       type: SchemaType.OBJECT,
       properties: {
         caller_name: { type: SchemaType.STRING, nullable: true },
+        caller_phone: { type: SchemaType.STRING, nullable: true, description: "Only if the caller states it themselves — never ask them to repeat it back for verification." },
+        caller_email: { type: SchemaType.STRING, nullable: true },
         location: { type: SchemaType.STRING, nullable: true },
         carpet_area_sqft: { type: SchemaType.NUMBER, nullable: true },
         project_scope: { type: SchemaType.STRING, nullable: true },
         timeline: { type: SchemaType.STRING, nullable: true },
         is_decision_maker: { type: SchemaType.BOOLEAN, nullable: true },
         referral_source: { type: SchemaType.STRING, nullable: true },
+        budget_signal: {
+          type: SchemaType.STRING,
+          nullable: true,
+          description: "Capture a budget figure/range for the designer's and CRM's records if the caller states one — this is for internal logging only, never recited back to the caller, and never used to justify a verdict change on its own.",
+        },
+        preferred_consultation_mode: {
+          type: SchemaType.STRING,
+          format: "enum",
+          enum: ["site_visit", "studio_visit", "unspecified"],
+        },
       },
-      required: ["caller_name", "location", "carpet_area_sqft", "project_scope", "timeline", "is_decision_maker", "referral_source"],
+      required: ["caller_name", "caller_phone", "caller_email", "location", "carpet_area_sqft", "project_scope", "timeline", "is_decision_maker", "referral_source", "budget_signal", "preferred_consultation_mode"],
     },
     caller_reply: {
       type: SchemaType.STRING,
@@ -69,6 +81,16 @@ naturally in whatever mix the caller uses — do not force pure English. Keep se
 and conversational, like a real phone call, not a written document.
 
 ${buildKnowledgeBase()}
+
+## What to capture
+
+Besides the project details, get the caller's name, phone number, and email if they offer
+them naturally in conversation — do not interrogate for these or ask them to spell/repeat
+anything back for verification, that's not how a real front-desk call sounds. If a budget
+figure comes up, log it for the designer and CRM (budget_signal) but never say it back or
+let it change your verdict on its own — budget mismatch is always a flag, never a decline.
+If the caller expresses a preference for a site visit vs. coming to the studio, capture
+that too (preferred_consultation_mode); leave it unspecified if it never comes up.
 
 ## Your decision boundary — four buckets, no fifth option
 
@@ -172,6 +194,15 @@ function buildHandoffNote(result: Omit<IntakeResult, "handoff_note">, body: stri
   }
 
   const lines = [prefix, body];
+  if (result.extracted.caller_phone || result.extracted.caller_email) {
+    lines.push(
+      `Contact: ${[result.extracted.caller_phone, result.extracted.caller_email].filter(Boolean).join(" / ")}`
+    );
+  }
+  if (result.extracted.budget_signal) lines.push(`Budget mentioned: ${result.extracted.budget_signal}`);
+  if (result.extracted.preferred_consultation_mode) {
+    lines.push(`Prefers: ${result.extracted.preferred_consultation_mode.replace("_", " ")}`);
+  }
   if (callbackWindow) lines.push(`Callback window: ${callbackWindow}`);
   if (result.named_senior_request) lines.push(`Caller specifically asked for: ${result.named_senior_request}`);
   return lines.join("\n");
@@ -210,12 +241,20 @@ export async function runIntake(transcript: string, callDate: Date = new Date())
 
   const callback_window = raw.verdict === "flagged" ? computeCallbackWindow() : null;
 
+  const extracted = {
+    ...raw.extracted,
+    preferred_consultation_mode:
+      raw.extracted.preferred_consultation_mode === "unspecified"
+        ? null
+        : raw.extracted.preferred_consultation_mode,
+  };
+
   const base = {
     call_type: raw.call_type,
     verdict: raw.verdict,
     hard_decline_reason,
     verdict_reason: raw.verdict_reason,
-    extracted: raw.extracted,
+    extracted,
     caller_reply: raw.caller_reply,
     named_senior_request: raw.named_senior_request ?? null,
     callback_window,

@@ -25,6 +25,16 @@ function containsPrice(text: string): boolean {
   return PRICE_PATTERNS.some((pattern) => pattern.test(text));
 }
 
+// Lines the handoff note composes deterministically from structured fields (see
+// buildHandoffNote in gemini.ts) — these legitimately carry a budget figure for internal
+// CRM/designer use and must survive the price scan below, which exists to catch the
+// model's own free-form prose leaking a price, not our own structured logging.
+const SAFE_LINE_PREFIXES = ["Contact:", "Budget mentioned:", "Prefers:", "Callback window:", "Caller specifically asked for:"];
+
+function isSafeLine(line: string): boolean {
+  return SAFE_LINE_PREFIXES.some((prefix) => line.startsWith(prefix));
+}
+
 export function applyGuardrails(result: IntakeResult): GuardrailOutcome {
   const notes: string[] = [];
   let triggered = false;
@@ -36,13 +46,22 @@ export function applyGuardrails(result: IntakeResult): GuardrailOutcome {
     next.caller_reply = PRICING_REDIRECT;
     triggered = true;
   }
-  if (next.handoff_note && containsPrice(next.handoff_note)) {
-    notes.push("handoff_note contained a price figure — stripped");
-    next.handoff_note = next.handoff_note.replace(
-      /.*(₹|\brs\.?\s?\d|lakh|crore|per\s?sq).*$/gim,
-      "[price figure removed by guardrail]"
-    );
-    triggered = true;
+  if (next.handoff_note) {
+    const lines = next.handoff_note.split("\n");
+    let strippedAny = false;
+    const cleaned = lines.map((line) => {
+      if (isSafeLine(line)) return line;
+      if (containsPrice(line)) {
+        strippedAny = true;
+        return "[price figure removed by guardrail]";
+      }
+      return line;
+    });
+    if (strippedAny) {
+      notes.push("handoff_note's AI-written portion contained a price figure — stripped (budget_signal line left intact)");
+      next.handoff_note = cleaned.join("\n");
+      triggered = true;
+    }
   }
 
   // Guardrail 2: auto-decline is only legitimate on the whitelisted factual reasons.

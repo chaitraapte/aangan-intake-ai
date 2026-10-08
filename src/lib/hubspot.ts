@@ -1,10 +1,6 @@
 import "server-only";
 import type { CallRecord, Verdict } from "./types";
 
-// Known gap: the text simulator captures no phone/email, which would normally be the
-// dedup key for a contact. Every call creates a new HubSpot contact rather than updating
-// a returning caller's record — a real phone system would key off caller ID instead.
-
 const HUBSPOT_API = "https://api.hubapi.com";
 const DEAL_PIPELINE = "default";
 const DEAL_STAGE_INQUIRY = "4414728905"; // "Inquiry" stage in the default Sales Pipeline
@@ -36,6 +32,25 @@ async function hubspotFetch(path: string, init: RequestInit) {
   return res.json();
 }
 
+// Dedup by email first, then phone — a returning caller who gives either gets their
+// existing contact updated instead of a duplicate created. No phone/email at all (the
+// simulator's main remaining gap) still falls through to a fresh contact every time.
+async function findExistingContactId(email: string | null, phone: string | null): Promise<string | null> {
+  const propertyName = email ? "email" : phone ? "phone" : null;
+  const value = email ?? phone;
+  if (!propertyName || !value) return null;
+
+  const result = await hubspotFetch("/crm/v3/objects/contacts/search", {
+    method: "POST",
+    body: JSON.stringify({
+      filterGroups: [{ filters: [{ propertyName, operator: "EQ", value }] }],
+      limit: 1,
+    }),
+  });
+
+  return result.results?.[0]?.id ?? null;
+}
+
 export interface HubSpotSyncResult {
   contact_id: string | null;
   deal_id: string | null;
@@ -51,22 +66,34 @@ export async function syncCallToHubSpot(call: CallRecord): Promise<HubSpotSyncRe
     const [firstname, ...rest] = (call.caller_name ?? "Unknown caller").split(" ");
     const lastname = rest.join(" ") || "—";
 
-    const contact = await hubspotFetch("/crm/v3/objects/contacts", {
-      method: "POST",
-      body: JSON.stringify({
-        properties: {
-          firstname,
-          lastname,
-          location: call.location,
-          carpet_area_sq_ft: call.carpet_area_sqft,
-          project_scope: call.project_scope,
-          timeline: call.timeline,
-          decision_maker_confirmed: call.is_decision_maker === null ? undefined : String(call.is_decision_maker),
-          referral_source: call.referral_source,
-          call_verdict: VERDICT_TO_HUBSPOT[call.verdict],
-        },
-      }),
-    });
+    const properties = {
+      firstname,
+      lastname,
+      email: call.caller_email ?? undefined,
+      phone: call.caller_phone ?? undefined,
+      location: call.location,
+      carpet_area_sq_ft: call.carpet_area_sqft,
+      project_scope: call.project_scope,
+      timeline: call.timeline,
+      decision_maker_confirmed: call.is_decision_maker === null ? undefined : String(call.is_decision_maker),
+      referral_source: call.referral_source,
+      call_verdict: VERDICT_TO_HUBSPOT[call.verdict],
+      // budget_signal and preferred_consultation_mode aren't set up as custom contact
+      // properties yet (would need crm.schemas.contacts.write, which this service key
+      // doesn't have) — they still land in the Telegram handoff note, just not here.
+    };
+
+    const existingId = await findExistingContactId(call.caller_email, call.caller_phone);
+
+    const contact = existingId
+      ? await hubspotFetch(`/crm/v3/objects/contacts/${existingId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ properties }),
+        })
+      : await hubspotFetch("/crm/v3/objects/contacts", {
+          method: "POST",
+          body: JSON.stringify({ properties }),
+        });
 
     const contact_id: string = contact.id;
     let deal_id: string | null = null;

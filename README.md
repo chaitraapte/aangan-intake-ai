@@ -88,17 +88,27 @@ npm run dev
    an upset-caller escalation routes instead of just flagging, per the spec's explicit
    trigger).
 
+## Data captured per call
+
+`caller_name`, `caller_phone`, `caller_email`, `location`, `carpet_area_sqft`,
+`project_scope`, `timeline`, `is_decision_maker`, `referral_source`, `budget_signal`
+(logged for the designer/CRM, never recited to the caller — the no-pricing rule governs
+what the AI *says*, not what it's allowed to record), `preferred_consultation_mode`
+(site visit vs. studio visit). None of this is interrogated for — captured only when the
+caller offers it naturally, matching how a real front-desk call actually sounds.
+
 ## Integrations
 
 - ✅ **Neon** — primary datastore (see Stack).
-- ✅ **HubSpot** (`src/lib/hubspot.ts`) — every call creates/updates a contact (custom
-  properties: `call_verdict`, `carpet_area_sq_ft`, `decision_maker_confirmed`, `location`,
-  `project_scope`, `referral_source`, `timeline` — set up directly in the HubSpot portal, not
-  via API); an `approved` verdict also creates a deal in the default pipeline's "Inquiry"
-  stage, associated to the contact. **Known gap**: the text simulator captures no
-  phone/email, which would normally dedupe a contact by caller — every call currently
-  creates a brand-new HubSpot contact rather than updating a returning caller's record. A
-  real phone system would key off caller ID instead.
+- ✅ **HubSpot** (`src/lib/hubspot.ts`) — every call creates/updates a contact, now including
+  standard `email`/`phone` plus the custom properties (`call_verdict`, `carpet_area_sq_ft`,
+  `decision_maker_confirmed`, `location`, `project_scope`, `referral_source`, `timeline` — set
+  up directly in the HubSpot portal, not via API); an `approved` verdict also creates a deal
+  in the default pipeline's "Inquiry" stage, associated to the contact. Dedupes by email, then
+  phone, before falling back to creating a new contact. `budget_signal` and
+  `preferred_consultation_mode` are captured (see Data captured below) but not yet synced to
+  HubSpot as custom properties — would need `crm.schemas.contacts.write`, which this service
+  key doesn't have; they still land in the Telegram handoff note.
 - ⏳ **Google Calendar** — connected (an "aangan" calendar exists), but not yet wired into
   the call flow. Important distinction: the MCP connector used to set this up is available
   to *me*, in this chat — not to the deployed app. Wiring `[get_availability]`/
