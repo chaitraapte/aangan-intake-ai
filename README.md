@@ -140,3 +140,4 @@ caller offers it naturally, matching how a real front-desk call actually sounds.
 - Real telephony/voice — out of scope for the "simulated demo" fidelity decision regardless
   of Vaani's arrival; the turn-by-turn conversation state and mid-call-drop handling the spec
   describes need an actual voice platform to exercise meaningfully.
+
