@@ -1,16 +1,20 @@
 import Link from "next/link";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
+import type { CallRecord } from "@/lib/types";
 import ReviewActions from "./ReviewActions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReviewPage() {
-  const supabase = createServiceRoleClient();
-  const { data: calls, error } = await supabase
-    .from("calls")
-    .select("*")
-    .eq("verdict", "flagged")
-    .order("created_at", { ascending: true });
+  let calls: CallRecord[] = [];
+  let error: string | null = null;
+  try {
+    calls = await query<CallRecord>(
+      "select * from calls where verdict = 'flagged' order by created_at asc"
+    );
+  } catch (err) {
+    error = err instanceof Error ? err.message : String(err);
+  }
 
   return (
     <main className="mx-auto max-w-3xl flex-1 p-6 flex flex-col gap-6 w-full">
@@ -26,14 +30,14 @@ export default async function ReviewPage() {
         factually decline on its own — every one is a soft judgment call a human owns.
       </p>
 
-      {error && <p className="text-red-600 text-sm">{error.message}</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      {calls && calls.length === 0 && (
+      {calls.length === 0 && (
         <p className="text-sm text-gray-500">Queue is empty.</p>
       )}
 
       <div className="flex flex-col gap-4">
-        {calls?.map((call) => (
+        {calls.map((call) => (
           <div key={call.id} className="rounded border border-amber-300 bg-amber-50 p-4 flex flex-col gap-2 text-sm">
             <div className="text-xs text-gray-500">{new Date(call.created_at).toLocaleString()}</div>
             <div><span className="font-semibold">Transcript:</span> {call.transcript}</div>

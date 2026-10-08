@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { query, queryOne } from "@/lib/db";
 import { sendHandoffNote } from "@/lib/telegram";
+import type { CallRecord } from "@/lib/types";
 
 // Front desk resolves a flagged call: approve (sends handoff) or decline (closes it out).
 // This is the human-owned step the locked decisions require for every soft judgment call —
@@ -17,15 +18,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing call_id or invalid final_decision." }, { status: 400 });
   }
 
-  const supabase = createServiceRoleClient();
+  const call = await queryOne<CallRecord>("select * from calls where id = $1", [call_id]);
 
-  const { data: call, error: fetchError } = await supabase
-    .from("calls")
-    .select("*")
-    .eq("id", call_id)
-    .single();
-
-  if (fetchError || !call) {
+  if (!call) {
     return NextResponse.json({ error: "Call not found." }, { status: 404 });
   }
 
@@ -39,19 +34,18 @@ export async function POST(req: Request) {
   // default.
   const overrode_ai = final_decision === "approved";
 
-  const { data: review, error: reviewError } = await supabase
-    .from("reviews")
-    .insert({
-      call_id,
-      final_decision,
-      overrode_ai,
-      reviewer_note: reviewer_note ?? null,
-    })
-    .select()
-    .single();
-
-  if (reviewError) {
-    return NextResponse.json({ error: `Supabase insert failed: ${reviewError.message}` }, { status: 500 });
+  let review;
+  try {
+    review = await queryOne(
+      `insert into reviews (call_id, final_decision, overrode_ai, reviewer_note)
+       values ($1,$2,$3,$4) returning *`,
+      [call_id, final_decision, overrode_ai, reviewer_note ?? null]
+    );
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Database insert failed: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
+    );
   }
 
   const newVerdict = final_decision === "approved" ? "approved" : "hard_declined";
@@ -63,13 +57,17 @@ export async function POST(req: Request) {
     handoff_sent = handoff.sent;
   }
 
-  const { error: updateError } = await supabase
-    .from("calls")
-    .update({ verdict: newVerdict, handoff_sent })
-    .eq("id", call_id);
-
-  if (updateError) {
-    return NextResponse.json({ error: `Supabase update failed: ${updateError.message}` }, { status: 500 });
+  try {
+    await query("update calls set verdict = $1, handoff_sent = $2 where id = $3", [
+      newVerdict,
+      handoff_sent,
+      call_id,
+    ]);
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Database update failed: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ review, handoff_sent });

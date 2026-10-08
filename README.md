@@ -29,29 +29,29 @@ Phone channel only. WhatsApp and the web form are explicitly out of scope for th
 
 ## Known gap
 
-`docs/services.md` and `docs/qualified.md` are provisional — inferred from the 20 real phone
-transcripts in `docs/fixtures/phone-transcripts.md`, not from Nikhil's actual source files
-(a Google Drive permission issue blocked retrieval). Verify both against the real documents
-before trusting the size/timeline/budget thresholds in production logic.
+`docs/services.md` and `docs/qualified.md` are sourced from the real Vaani voice-assistant
+spec (received 2026-10-08) — see the file headers for exactly what's authoritative vs. still
+inferred (the spec references a fuller "Call Rubric" table that wasn't included).
 
 ## Stack
 
-Next.js (App Router) + Supabase + Gemini — same pattern as the TripSync build this repo is
-intentionally kept separate from.
+Next.js (App Router) + Neon Postgres + Gemini. (Originally scaffolded on Supabase — migrated
+to Neon on 2026-10-09; the old Supabase project, `aangan-intake-ai` ref
+`bimclqqnlqeqiiafvoxs`, is unused but left in place rather than deleted.)
 
-Supabase project: `aangan-intake-ai` (ref `bimclqqnlqeqiiafvoxs`, `ap-southeast-1`).
+Neon project: **Aangan AI** (`dawn-wind-66956614`, `aws-us-east-1`).
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env.local   # already pre-filled with the Supabase URL + anon key below
+cp .env.example .env.local
 ```
 
 Still needed in `.env.local`:
 - `GEMINI_API_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` — Supabase dashboard → Project Settings → API → service_role
-  secret (not exposed via MCP for security, grab it yourself)
+- `DATABASE_URL` — Neon connection string (console.neon.tech → your project → Connection
+  Details; use the pooled variant)
 - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_DESIGNER_CHAT_ID` — optional; handoff notes log to
   the console/DB instead of sending if unset
 
@@ -61,7 +61,8 @@ npm run dev
 
 ## Build phases — status
 
-0. ✅ Scaffold — Next.js app, Supabase project + `calls`/`reviews` schema, knowledge base docs.
+0. ✅ Scaffold — Next.js app, database schema, knowledge base docs. (Originally Supabase,
+   migrated to Neon 2026-10-09 — see Stack above.)
 1. ✅ Data model — `guardrail_triggered` column added once Phase 4 needed it.
 2. ✅ Knowledge base → system prompt (`src/lib/knowledge-base.ts`, `src/lib/gemini.ts`).
 3. ✅ Call simulator — single-shot per call (not full turn-by-turn state), matching the
@@ -78,17 +79,26 @@ npm run dev
 7. ✅ Dashboard — `/dashboard`: volume, verdict breakdown, conversion, override rate,
    guardrail interventions, estimated run cost.
 8. ✅ Replay — `/replay` runs all 20 phone transcripts (`src/lib/fixtures.ts`) against the
-   live system. **17/19 scoreable fixtures matched exactly** (T08 is a missed call, not a
-   qualification case). The two "mismatches" (T02, T07) are the AI flagging a timeline
-   ambiguity that the real front desk didn't scrutinize — a defensible divergence given the
-   locked "when in doubt, flag" rule, not a bug; see the notes in `fixtures.ts`. T10 and T14
-   diverge from the real front desk **on purpose** (soft budget/decision-maker judgment calls
-   now flag instead of auto-resolving).
+   live system. **19/19 scoreable fixtures match exactly** (T08 is a missed call, not a
+   qualification case). `runIntake` takes an explicit call date so the 6-week timeline floor
+   is judged against when each call actually happened, not whichever day the replay is run —
+   without this, results drifted daily (caught and fixed 2026-10-08). T10 and T16 diverge
+   from the real front desk **on purpose** (soft budget judgment flags instead of declining;
+   an upset-caller escalation routes instead of just flagging, per the spec's explicit
+   trigger).
 
-## Not built (by design)
+## Integrations
 
-- Real telephony/voice (Vaani or otherwise) — pending the API key, and out of scope for the
-  "simulated demo" fidelity decision regardless.
-- Turn-by-turn conversational memory across multiple exchanges in one call — the simulator
-  takes the full caller statement at once, which was sufficient to validate every locked
-  decision against the real transcripts.
+- ✅ **Neon** — primary datastore (see Stack).
+- ✅ **Google Calendar** — connected; not yet wired into the call flow (`[get_availability]`/
+  `[book_consultation]` from the Vaani spec). Need to confirm which calendar to book against.
+- ⏳ **HubSpot** — confirmed in scope 2026-10-09, not yet built. Needs a private app token and
+  confirmation of what a call becomes there (contact always, deal on approval?).
+- ⏳ **Vaani** (voice/telephony) — pending API credentials and docs. Until then the call
+  simulator (single-shot text, not full turn-by-turn state) stands in for a real phone call.
+
+## Not built (by design, pending the above)
+
+- Real telephony/voice — out of scope for the "simulated demo" fidelity decision regardless
+  of Vaani's arrival; the turn-by-turn conversation state and mid-call-drop handling the spec
+  describes need an actual voice platform to exercise meaningfully.

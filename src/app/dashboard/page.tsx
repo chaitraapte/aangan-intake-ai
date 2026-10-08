@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
+import type { CallRecord, ReviewRecord } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -13,32 +14,29 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 export default async function DashboardPage() {
-  const supabase = createServiceRoleClient();
+  const calls = await query<CallRecord>("select * from calls");
+  const reviews = await query<ReviewRecord>("select * from reviews");
 
-  const { data: calls } = await supabase.from("calls").select("*");
-  const { data: reviews } = await supabase.from("reviews").select("*");
-
-  const total = calls?.length ?? 0;
-  const approved = calls?.filter((c) => c.verdict === "approved").length ?? 0;
-  const hardDeclined = calls?.filter((c) => c.verdict === "hard_declined").length ?? 0;
-  const flagged = calls?.filter((c) => c.verdict === "flagged").length ?? 0;
-  const routedExisting = calls?.filter((c) => c.verdict === "routed_existing_client").length ?? 0;
-  const guardrailTriggers = calls?.filter((c) => c.guardrail_triggered).length ?? 0;
+  const total = calls.length;
+  const approved = calls.filter((c) => c.verdict === "approved").length;
+  const hardDeclined = calls.filter((c) => c.verdict === "hard_declined").length;
+  const flagged = calls.filter((c) => c.verdict === "flagged").length;
+  const routedExisting = calls.filter((c) => c.verdict === "routed_existing_client").length;
+  const guardrailTriggers = calls.filter((c) => c.guardrail_triggered).length;
 
   const conversionRate = total > 0 ? ((approved / total) * 100).toFixed(0) : "0";
 
-  const resolvedReviews = reviews?.length ?? 0;
-  const overrides = reviews?.filter((r) => r.overrode_ai).length ?? 0;
+  const resolvedReviews = reviews.length;
+  const overrides = reviews.filter((r) => r.overrode_ai).length;
   const overrideRate = resolvedReviews > 0 ? ((overrides / resolvedReviews) * 100).toFixed(0) : "0";
 
+  // node-postgres returns numeric columns as strings to avoid precision loss — coerce.
   const avgResponseSeconds =
     total > 0
-      ? (
-          (calls ?? []).reduce((sum, c) => sum + (c.response_seconds ?? 0), 0) / total
-        ).toFixed(1)
+      ? (calls.reduce((sum, c) => sum + Number(c.response_seconds ?? 0), 0) / total).toFixed(1)
       : "0";
 
-  const totalCost = (calls ?? []).reduce((sum, c) => sum + (c.cost_usd ?? 0), 0);
+  const totalCost = calls.reduce((sum, c) => sum + Number(c.cost_usd ?? 0), 0);
 
   return (
     <main className="mx-auto max-w-3xl flex-1 p-6 flex flex-col gap-6 w-full">

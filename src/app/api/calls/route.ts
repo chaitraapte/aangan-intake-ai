@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { runIntake } from "@/lib/gemini";
 import { applyGuardrails } from "@/lib/guardrails";
 import { sendHandoffNote } from "@/lib/telegram";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { queryOne } from "@/lib/db";
+import type { CallRecord } from "@/lib/types";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -31,34 +32,42 @@ export async function POST(req: Request) {
   const handoff = await sendHandoffNote(result.handoff_note);
   const handoff_sent = handoff.sent;
 
-  const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
-    .from("calls")
-    .insert({
-      transcript,
-      call_type: result.call_type,
-      location: result.extracted.location,
-      carpet_area_sqft: result.extracted.carpet_area_sqft,
-      project_scope: result.extracted.project_scope,
-      timeline: result.extracted.timeline,
-      is_decision_maker: result.extracted.is_decision_maker,
-      referral_source: result.extracted.referral_source,
-      verdict: result.verdict,
-      verdict_reason: result.verdict_reason,
-      callback_window: result.callback_window,
-      named_senior_request: result.named_senior_request,
-      handoff_sent,
-      guardrail_triggered,
-      input_tokens: run.input_tokens,
-      output_tokens: run.output_tokens,
-      cost_usd: run.cost_usd,
-      response_seconds: run.response_seconds,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: `Supabase insert failed: ${error.message}` }, { status: 500 });
+  let data: CallRecord | null;
+  try {
+    data = await queryOne<CallRecord>(
+      `insert into calls (
+        transcript, call_type, location, carpet_area_sqft, project_scope, timeline,
+        is_decision_maker, referral_source, verdict, verdict_reason, callback_window,
+        named_senior_request, handoff_sent, guardrail_triggered, input_tokens,
+        output_tokens, cost_usd, response_seconds
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+      returning *`,
+      [
+        transcript,
+        result.call_type,
+        result.extracted.location,
+        result.extracted.carpet_area_sqft,
+        result.extracted.project_scope,
+        result.extracted.timeline,
+        result.extracted.is_decision_maker,
+        result.extracted.referral_source,
+        result.verdict,
+        result.verdict_reason,
+        result.callback_window,
+        result.named_senior_request,
+        handoff_sent,
+        guardrail_triggered,
+        run.input_tokens,
+        run.output_tokens,
+        run.cost_usd,
+        run.response_seconds,
+      ]
+    );
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Database insert failed: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({
