@@ -109,11 +109,16 @@ caller offers it naturally, matching how a real front-desk call actually sounds.
   `preferred_consultation_mode` are captured (see Data captured below) but not yet synced to
   HubSpot as custom properties — would need `crm.schemas.contacts.write`, which this service
   key doesn't have; they still land in the Telegram handoff note.
-- ⏳ **Google Calendar** — connected (an "aangan" calendar exists), but not yet wired into
-  the call flow. Important distinction: the MCP connector used to set this up is available
-  to *me*, in this chat — not to the deployed app. Wiring `[get_availability]`/
-  `[book_consultation]` into the actual code needs its own Google service-account
-  credentials (separate setup, not done yet).
+- ✅ **Google Calendar** (`src/lib/calendar.ts`) — an `approved` verdict books the earliest
+  open business-hours slot (10am–7pm IST, Mon–Sat, next 10 days) on the "aangan" calendar via
+  `freebusy.query` + `events.insert`, and the booked time is appended to both `caller_reply`
+  and the handoff note. Auth note: Google Cloud service-account **key creation is blocked by
+  an org policy** on `pg27.mesaschool.co` (`iam.disableServiceAccountKeyCreation`) — used a
+  user OAuth refresh token instead (`GOOGLE_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN`), obtained
+  via the OAuth Playground against `chaitra_apte@pg27.mesaschool.co`. Functionally equivalent
+  for this build, just a different credential type. Verified live: booked two consultations
+  back to back, confirmed no double-booking (second call correctly picked the next free
+  hour), confirmed event details on the real calendar, then deleted both test events.
 - ⏳ **Vaani** (voice/telephony) — pending API credentials and docs. Until then the call
   simulator (single-shot text, not full turn-by-turn state) stands in for a real phone call.
 

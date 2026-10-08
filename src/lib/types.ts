@@ -83,6 +83,8 @@ export interface CallRecord {
   guardrail_triggered: boolean;
   hubspot_contact_id: string | null;
   hubspot_deal_id: string | null;
+  calendar_event_id: string | null;
+  consultation_slot: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
   cost_usd: number | null;

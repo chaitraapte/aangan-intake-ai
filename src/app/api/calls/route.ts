@@ -3,8 +3,21 @@ import { runIntake } from "@/lib/gemini";
 import { applyGuardrails } from "@/lib/guardrails";
 import { sendHandoffNote } from "@/lib/telegram";
 import { syncCallToHubSpot } from "@/lib/hubspot";
+import { bookConsultation } from "@/lib/calendar";
 import { queryOne } from "@/lib/db";
 import type { CallRecord } from "@/lib/types";
+
+function formatSlot(date: Date): string {
+  return date.toLocaleString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+}
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -25,13 +38,6 @@ export async function POST(req: Request) {
   }
 
   const { result, guardrail_triggered, guardrail_notes } = applyGuardrails(run.result);
-
-  // Every call gets a handoff note, with no exceptions, including declines and escalations
-  // — override rule 5. All land in the same Telegram chat for this single-studio demo; the
-  // status prefix (APPROVED / DECLINED — <reason> / FLAG — <reason> / URGENT — ESCALATE)
-  // is what distinguishes them.
-  const handoff = await sendHandoffNote(result.handoff_note);
-  const handoff_sent = handoff.sent;
 
   let data: CallRecord | null;
   try {
@@ -62,7 +68,7 @@ export async function POST(req: Request) {
         result.verdict_reason,
         result.callback_window,
         result.named_senior_request,
-        handoff_sent,
+        false, // handoff_sent — set after the note (possibly with the booked slot) is sent below
         guardrail_triggered,
         run.input_tokens,
         run.output_tokens,
@@ -82,20 +88,48 @@ export async function POST(req: Request) {
     deal_id: null,
     error: null,
   };
+  let caller_reply = result.caller_reply;
+  let handoff_note = result.handoff_note;
+
   if (data) {
     hubspot = await syncCallToHubSpot(data);
-    if (hubspot.contact_id || hubspot.deal_id) {
-      data = await queryOne<CallRecord>(
-        "update calls set hubspot_contact_id = $1, hubspot_deal_id = $2 where id = $3 returning *",
-        [hubspot.contact_id, hubspot.deal_id, data.id]
-      );
+
+    // Book the consultation slot for real, against the live "aangan" calendar — [get_availability]
+    // + [book_consultation] from the Vaani spec, done here since the text simulator can't hold a
+    // second turn to let the caller pick a slot. Picks the earliest open business-hours slot.
+    let calendar_event_id: string | null = null;
+    let consultation_slot: string | null = null;
+    if (result.verdict === "approved") {
+      const booking = await bookConsultation({
+        summary: `Consultation — ${result.extracted.caller_name ?? "Unknown caller"} (${result.extracted.location ?? "location TBD"})`,
+        description: handoff_note,
+        attendeeEmail: result.extracted.caller_email,
+      });
+      if (booking.slot) {
+        calendar_event_id = booking.event_id;
+        consultation_slot = booking.slot.start.toISOString();
+        const formatted = formatSlot(booking.slot.start);
+        caller_reply += ` I've gone ahead and booked your consultation for ${formatted}.`;
+        handoff_note += `\nConsultation booked: ${formatted}`;
+      } else if (booking.error) {
+        handoff_note += `\nConsultation booking failed: ${booking.error}`;
+      }
     }
+
+    const handoff = await sendHandoffNote(handoff_note);
+
+    data = await queryOne<CallRecord>(
+      `update calls set hubspot_contact_id = $1, hubspot_deal_id = $2, calendar_event_id = $3,
+         consultation_slot = $4, handoff_sent = $5
+       where id = $6 returning *`,
+      [hubspot.contact_id, hubspot.deal_id, calendar_event_id, consultation_slot, handoff.sent, data.id]
+    );
   }
 
   return NextResponse.json({
     call: data,
-    caller_reply: result.caller_reply,
-    handoff_note: result.handoff_note,
+    caller_reply,
+    handoff_note,
     hard_decline_reason: result.hard_decline_reason,
     guardrail_triggered,
     guardrail_notes,
