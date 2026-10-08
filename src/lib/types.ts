@@ -85,6 +85,8 @@ export interface CallRecord {
   hubspot_deal_id: string | null;
   calendar_event_id: string | null;
   consultation_slot: string | null;
+  vaani_call_id: string | null;
+  vaani_recording_url: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
   cost_usd: number | null;

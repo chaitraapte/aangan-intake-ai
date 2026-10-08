@@ -119,8 +119,21 @@ caller offers it naturally, matching how a real front-desk call actually sounds.
   for this build, just a different credential type. Verified live: booked two consultations
   back to back, confirmed no double-booking (second call correctly picked the next free
   hour), confirmed event details on the real calendar, then deleted both test events.
-- ⏳ **Vaani** (voice/telephony) — pending API credentials and docs. Until then the call
-  simulator (single-shot text, not full turn-by-turn state) stands in for a real phone call.
+- 🟡 **Vaani** (voice/telephony) — API key obtained; real public docs found at
+  `docs.vaanivoice.ai`. Architecture is different from what was originally assumed: Vaani
+  runs its own model against a prompt configured in *their* dashboard (not ours), and the
+  integration point for our backend is the `call_postprocessing` webhook, fired after a call
+  ends with the full transcript. `src/app/api/vaani/webhook/route.ts` receives it and feeds
+  the transcript straight into `processCall()` (`src/lib/process-call.ts`) — the exact same
+  pipeline `/api/calls` uses. Verified locally with a simulated inbound
+  `call_postprocessing` payload: correctly extracted caller/project details, approved the
+  lead, created the HubSpot contact, booked the Calendar slot, and sent the Telegram
+  handoff — all traced back to the (fake) Vaani call ID. Non-`call_postprocessing` events
+  are acknowledged and ignored. **Still needed**: (1) port the Aangan system prompt into
+  Vaani's own "Create an Agent" dashboard field — their model handles the live call, not
+  ours; (2) provision a phone number and assign it to that agent; (3) a publicly reachable
+  URL to register as the webhook endpoint (currently only `localhost` — needs either a
+  tunnel for testing or a real deployment, not done yet pending that decision).
 
 ## Not built (by design, pending the above)
 
