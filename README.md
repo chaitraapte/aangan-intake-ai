@@ -54,6 +54,7 @@ Still needed in `.env.local`:
   Details; use the pooled variant)
 - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_DESIGNER_CHAT_ID` — optional; handoff notes log to
   the console/DB instead of sending if unset
+- `HUBSPOT_ACCESS_TOKEN` — optional; HubSpot sync is skipped silently if unset
 
 ```bash
 npm run dev
@@ -90,10 +91,19 @@ npm run dev
 ## Integrations
 
 - ✅ **Neon** — primary datastore (see Stack).
-- ✅ **Google Calendar** — connected; not yet wired into the call flow (`[get_availability]`/
-  `[book_consultation]` from the Vaani spec). Need to confirm which calendar to book against.
-- ⏳ **HubSpot** — confirmed in scope 2026-10-09, not yet built. Needs a private app token and
-  confirmation of what a call becomes there (contact always, deal on approval?).
+- ✅ **HubSpot** (`src/lib/hubspot.ts`) — every call creates/updates a contact (custom
+  properties: `call_verdict`, `carpet_area_sq_ft`, `decision_maker_confirmed`, `location`,
+  `project_scope`, `referral_source`, `timeline` — set up directly in the HubSpot portal, not
+  via API); an `approved` verdict also creates a deal in the default pipeline's "Inquiry"
+  stage, associated to the contact. **Known gap**: the text simulator captures no
+  phone/email, which would normally dedupe a contact by caller — every call currently
+  creates a brand-new HubSpot contact rather than updating a returning caller's record. A
+  real phone system would key off caller ID instead.
+- ⏳ **Google Calendar** — connected (an "aangan" calendar exists), but not yet wired into
+  the call flow. Important distinction: the MCP connector used to set this up is available
+  to *me*, in this chat — not to the deployed app. Wiring `[get_availability]`/
+  `[book_consultation]` into the actual code needs its own Google service-account
+  credentials (separate setup, not done yet).
 - ⏳ **Vaani** (voice/telephony) — pending API credentials and docs. Until then the call
   simulator (single-shot text, not full turn-by-turn state) stands in for a real phone call.
 

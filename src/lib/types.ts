@@ -17,6 +17,7 @@ export const HARD_DECLINE_REASONS = [
 export type HardDeclineReason = (typeof HARD_DECLINE_REASONS)[number];
 
 export interface ExtractedFields {
+  caller_name: string | null;
   location: string | null;
   carpet_area_sqft: number | null;
   project_scope: string | null;
@@ -56,6 +57,7 @@ export interface CallRecord {
   created_at: string;
   transcript: string;
   call_type: CallType;
+  caller_name: string | null;
   location: string | null;
   carpet_area_sqft: number | null;
   project_scope: string | null;
@@ -68,6 +70,8 @@ export interface CallRecord {
   named_senior_request: string | null;
   handoff_sent: boolean;
   guardrail_triggered: boolean;
+  hubspot_contact_id: string | null;
+  hubspot_deal_id: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
   cost_usd: number | null;

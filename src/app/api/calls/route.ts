@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runIntake } from "@/lib/gemini";
 import { applyGuardrails } from "@/lib/guardrails";
 import { sendHandoffNote } from "@/lib/telegram";
+import { syncCallToHubSpot } from "@/lib/hubspot";
 import { queryOne } from "@/lib/db";
 import type { CallRecord } from "@/lib/types";
 
@@ -36,15 +37,16 @@ export async function POST(req: Request) {
   try {
     data = await queryOne<CallRecord>(
       `insert into calls (
-        transcript, call_type, location, carpet_area_sqft, project_scope, timeline,
-        is_decision_maker, referral_source, verdict, verdict_reason, callback_window,
-        named_senior_request, handoff_sent, guardrail_triggered, input_tokens,
-        output_tokens, cost_usd, response_seconds
-      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+        transcript, call_type, caller_name, location, carpet_area_sqft, project_scope,
+        timeline, is_decision_maker, referral_source, verdict, verdict_reason,
+        callback_window, named_senior_request, handoff_sent, guardrail_triggered,
+        input_tokens, output_tokens, cost_usd, response_seconds
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
       returning *`,
       [
         transcript,
         result.call_type,
+        result.extracted.caller_name,
         result.extracted.location,
         result.extracted.carpet_area_sqft,
         result.extracted.project_scope,
@@ -70,6 +72,21 @@ export async function POST(req: Request) {
     );
   }
 
+  let hubspot: Awaited<ReturnType<typeof syncCallToHubSpot>> = {
+    contact_id: null,
+    deal_id: null,
+    error: null,
+  };
+  if (data) {
+    hubspot = await syncCallToHubSpot(data);
+    if (hubspot.contact_id || hubspot.deal_id) {
+      data = await queryOne<CallRecord>(
+        "update calls set hubspot_contact_id = $1, hubspot_deal_id = $2 where id = $3 returning *",
+        [hubspot.contact_id, hubspot.deal_id, data.id]
+      );
+    }
+  }
+
   return NextResponse.json({
     call: data,
     caller_reply: result.caller_reply,
@@ -77,5 +94,6 @@ export async function POST(req: Request) {
     hard_decline_reason: result.hard_decline_reason,
     guardrail_triggered,
     guardrail_notes,
+    hubspot,
   });
 }

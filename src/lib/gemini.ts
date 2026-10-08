@@ -29,6 +29,7 @@ const RESPONSE_SCHEMA: Schema = {
     extracted: {
       type: SchemaType.OBJECT,
       properties: {
+        caller_name: { type: SchemaType.STRING, nullable: true },
         location: { type: SchemaType.STRING, nullable: true },
         carpet_area_sqft: { type: SchemaType.NUMBER, nullable: true },
         project_scope: { type: SchemaType.STRING, nullable: true },
@@ -36,7 +37,7 @@ const RESPONSE_SCHEMA: Schema = {
         is_decision_maker: { type: SchemaType.BOOLEAN, nullable: true },
         referral_source: { type: SchemaType.STRING, nullable: true },
       },
-      required: ["location", "carpet_area_sqft", "project_scope", "timeline", "is_decision_maker", "referral_source"],
+      required: ["caller_name", "location", "carpet_area_sqft", "project_scope", "timeline", "is_decision_maker", "referral_source"],
     },
     caller_reply: {
       type: SchemaType.STRING,
