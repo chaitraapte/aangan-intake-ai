@@ -22,6 +22,7 @@ export default async function ReviewPage() {
         <h1 className="text-xl font-semibold">Front desk review queue</h1>
         <nav className="flex gap-3 text-sm">
           <Link href="/" className="underline">Call simulator</Link>
+          <Link href="/leads" className="underline">Leads</Link>
           <Link href="/dashboard" className="underline">Dashboard</Link>
         </nav>
       </header>

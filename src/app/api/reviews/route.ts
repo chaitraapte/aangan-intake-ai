@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query, queryOne } from "@/lib/db";
 import { sendHandoffNote } from "@/lib/telegram";
+import { updateHubSpotAfterReview } from "@/lib/hubspot";
 import type { CallRecord } from "@/lib/types";
 
 // Front desk resolves a flagged call: approve (sends handoff) or decline (closes it out).
@@ -56,6 +57,10 @@ export async function POST(req: Request) {
     const handoff = await sendHandoffNote(note);
     handoff_sent = handoff.sent;
   }
+
+  // Move the HubSpot deal from Inquiry to Needs Assessment or Closed Lost — the founder's
+  // funnel view should reflect the human's call, not stay stuck wherever the AI left it.
+  await updateHubSpotAfterReview(call.hubspot_contact_id, call.hubspot_deal_id, final_decision);
 
   try {
     await query("update calls set verdict = $1, handoff_sent = $2 where id = $3", [

@@ -55,6 +55,7 @@ export default function Home() {
           </p>
         </div>
         <nav className="flex gap-3 text-sm">
+          <Link href="/leads" className="underline">Leads</Link>
           <Link href="/review" className="underline">Review queue</Link>
           <Link href="/dashboard" className="underline">Dashboard</Link>
         </nav>

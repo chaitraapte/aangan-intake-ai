@@ -97,18 +97,28 @@ what the AI *says*, not what it's allowed to record), `preferred_consultation_mo
 (site visit vs. studio visit). None of this is interrogated for — captured only when the
 caller offers it naturally, matching how a real front-desk call actually sounds.
 
+## Who sees what (deliberate split, corrected 2026-10-09)
+
+Originally HubSpot held all the project detail and our own app only showed aggregate
+numbers — backwards for who actually uses each system. Now:
+
+- **HubSpot = founder's funnel view.** Identity only (name/email/phone/verdict) on the
+  contact, no project detail. Every call except `routed_existing_client` gets a deal in the
+  default pipeline: `flagged` → Inquiry, `approved` → Needs Assessment, `hard_declined` →
+  Closed Lost, with an estimated deal `amount` (`carpet_area_sqft × ₹2,100/sqft`, the
+  mid-point of pricing.md's standard residential range — an internal estimate for pipeline
+  value only, never shown to a caller, same principle as `budget_signal`). HubSpot's own
+  pipeline/forecast views are the funnel reporting — no custom reporting built on our side.
+- **Our app (`/leads`) = designer's working view.** Every call, full detail: contact info,
+  carpet area, scope, timeline, budget mentioned, consultation preference, the booked
+  consultation time, the AI's reasoning, and the full transcript.
+
 ## Integrations
 
 - ✅ **Neon** — primary datastore (see Stack).
-- ✅ **HubSpot** (`src/lib/hubspot.ts`) — every call creates/updates a contact, now including
-  standard `email`/`phone` plus the custom properties (`call_verdict`, `carpet_area_sq_ft`,
-  `decision_maker_confirmed`, `location`, `project_scope`, `referral_source`, `timeline` — set
-  up directly in the HubSpot portal, not via API); an `approved` verdict also creates a deal
-  in the default pipeline's "Inquiry" stage, associated to the contact. Dedupes by email, then
-  phone, before falling back to creating a new contact. `budget_signal` and
-  `preferred_consultation_mode` are captured (see Data captured below) but not yet synced to
-  HubSpot as custom properties — would need `crm.schemas.contacts.write`, which this service
-  key doesn't have; they still land in the Telegram handoff note.
+- ✅ **HubSpot** (`src/lib/hubspot.ts`) — see "Who sees what" above. Dedupes contacts by
+  email, then phone, before falling back to creating a new one. A flagged call's deal stage
+  moves to Needs Assessment or Closed Lost when the front desk resolves it in `/review`.
 - ✅ **Google Calendar** (`src/lib/calendar.ts`) — an `approved` verdict books the earliest
   open business-hours slot (10am–7pm IST, Mon–Sat, next 10 days) on the "aangan" calendar via
   `freebusy.query` + `events.insert`, and the booked time is appended to both `caller_reply`
