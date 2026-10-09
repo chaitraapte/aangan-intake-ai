@@ -4,7 +4,7 @@ import type { CallRecord, Verdict } from "./types";
 // HubSpot is the FOUNDER's view: sales funnel only — how many leads, how many declined,
 // what's the pipeline worth. It deliberately does NOT hold project detail (transcript,
 // sq ft, scope, budget, scheduled time) — that's the designer's working data and lives in
-// our own app instead (see /leads). Splitting it this way was an explicit correction from
+// our own app instead (see /). Splitting it this way was an explicit correction from
 // the original design, which had put all the detail into HubSpot.
 
 const HUBSPOT_API = "https://api.hubapi.com";
