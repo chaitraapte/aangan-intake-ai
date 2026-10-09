@@ -43,8 +43,7 @@ export default async function DashboardPage() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dashboard</h1>
         <nav className="flex gap-3 text-sm">
-          <Link href="/" className="underline">Call simulator</Link>
-          <Link href="/leads" className="underline">Leads</Link>
+          <Link href="/" className="underline">Leads</Link>
           <Link href="/review" className="underline">Review queue</Link>
         </nav>
       </header>

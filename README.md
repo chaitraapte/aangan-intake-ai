@@ -66,9 +66,11 @@ npm run dev
    migrated to Neon 2026-10-09 — see Stack above.)
 1. ✅ Data model — `guardrail_triggered` column added once Phase 4 needed it.
 2. ✅ Knowledge base → system prompt (`src/lib/knowledge-base.ts`, `src/lib/gemini.ts`).
-3. ✅ Call simulator — single-shot per call (not full turn-by-turn state), matching the
-   "simulated demo" fidelity decision: paste what the caller said, get the verdict, the live
-   reply, and the handoff note. `/` in the app.
+3. ✅ Designer view (`/`, formerly a dev-only call simulator at this same URL, retired
+   2026-10-09 now that Vaani produces real transcripts) — every call, full detail: contact
+   info, project brief, scheduled consultation time, transcript. `POST /api/calls` (feeding a
+   transcript straight into `processCall()`) is still there for manual backend testing, just
+   with no UI in front of it anymore.
 4. ✅ Hard guardrails in code (`src/lib/guardrails.ts`) — a regex backstop strips any price
    figure from the reply/handoff note regardless of what the model produced, and any
    `hard_declined` verdict not on the factual whitelist is downgraded to `flagged`.
@@ -109,7 +111,7 @@ numbers — backwards for who actually uses each system. Now:
   mid-point of pricing.md's standard residential range — an internal estimate for pipeline
   value only, never shown to a caller, same principle as `budget_signal`). HubSpot's own
   pipeline/forecast views are the funnel reporting — no custom reporting built on our side.
-- **Our app (`/leads`) = designer's working view.** Every call, full detail: contact info,
+- **Our app (`/`) = designer's working view.** Every call, full detail: contact info,
   carpet area, scope, timeline, budget mentioned, consultation preference, the booked
   consultation time, the AI's reasoning, and the full transcript.
 

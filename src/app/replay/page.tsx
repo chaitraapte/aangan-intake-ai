@@ -68,7 +68,7 @@ export default async function ReplayPage() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Phase 8 — replay against real transcripts</h1>
         <nav className="flex gap-3 text-sm">
-          <Link href="/" className="underline">Call simulator</Link>
+          <Link href="/" className="underline">Leads</Link>
           <Link href="/dashboard" className="underline">Dashboard</Link>
         </nav>
       </header>
