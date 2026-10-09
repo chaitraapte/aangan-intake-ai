@@ -139,11 +139,18 @@ numbers — backwards for who actually uses each system. Now:
   `call_postprocessing` payload: correctly extracted caller/project details, approved the
   lead, created the HubSpot contact, booked the Calendar slot, and sent the Telegram
   handoff — all traced back to the (fake) Vaani call ID. Non-`call_postprocessing` events
-  are acknowledged and ignored. **Still needed**: (1) port the Aangan system prompt into
-  Vaani's own "Create an Agent" dashboard field — their model handles the live call, not
-  ours; (2) provision a phone number and assign it to that agent; (3) a publicly reachable
-  URL to register as the webhook endpoint (currently only `localhost` — needs either a
-  tunnel for testing or a real deployment, not done yet pending that decision).
+  are acknowledged and ignored. System prompt ported into Vaani's "Create an Agent" dashboard
+  field. Webhook endpoint is live at `https://aangan-intake-ai.vercel.app/api/vaani/webhook`
+  (Vercel deployment protection disabled so Vaani can reach it).
+  **Booking decision (2026-10-09)**: Google Calendar (via our own backend, post-call) is the
+  **only** real booking path — chosen over Cal.com's live in-call booking to avoid two
+  calendars going out of sync. Cal.com is connected in Vaani (API key + "Aangan Consultation"
+  event type) but its `book_appointment` and `check_availability_booking` tools are **not**
+  attached to the agent — left disconnected on purpose, not a TODO. The ported prompt already
+  reflects this: it never states a specific day/time live, and says a consultation will be
+  "confirmed shortly" after the call.
+  **Not done, by explicit choice**: no phone number has been provisioned/assigned to the
+  agent — the user has deferred this, so the agent cannot yet take real calls.
 
 ## Not built (by design, pending the above)
 
