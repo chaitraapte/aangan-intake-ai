@@ -45,6 +45,18 @@ function estimateDealAmount(carpetAreaSqft: number | null): number | undefined {
   return carpetAreaSqft * ESTIMATED_RATE_PER_SQFT;
 }
 
+// Board-view color-coding: HubSpot colors deal cards by this field's option, not by the
+// raw amount, so we classify into a tier once here rather than asking HubSpot to threshold
+// a number. Thresholds are arbitrary but reasonable given our ₹2,100/sqft estimate (a small
+// 1-room job lands Low, a typical full-home 2-3BHK lands Medium, a villa/large commercial
+// fit-out lands High).
+function revenueTierFor(amount: number | undefined): "high" | "medium" | "low" | "unknown" {
+  if (amount === undefined) return "unknown";
+  if (amount >= 5_000_000) return "high"; // ≥ ₹50L
+  if (amount >= 1_500_000) return "medium"; // ₹15L–50L
+  return "low"; // < ₹15L
+}
+
 async function hubspotFetch(path: string, init: RequestInit) {
   const token = process.env.HUBSPOT_ACCESS_TOKEN;
   if (!token) throw new Error("Missing HUBSPOT_ACCESS_TOKEN env var.");
@@ -133,6 +145,7 @@ export async function syncCallToHubSpot(call: CallRecord): Promise<HubSpotSyncRe
             pipeline: DEAL_PIPELINE,
             dealstage,
             amount: amount !== undefined ? String(amount) : undefined,
+            revenue_tier: revenueTierFor(amount),
           },
           associations: [
             {
