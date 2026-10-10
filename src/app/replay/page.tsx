@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { runIntake } from "@/lib/gemini";
 import { applyGuardrails } from "@/lib/guardrails";
 import { FIXTURES } from "@/lib/fixtures";
@@ -65,12 +64,8 @@ export default async function ReplayPage() {
 
   return (
     <main className="mx-auto max-w-4xl flex-1 p-6 flex flex-col gap-6 w-full">
-      <header className="flex items-center justify-between">
+      <header>
         <h1 className="text-xl font-semibold">Phase 8 — replay against real transcripts</h1>
-        <nav className="flex gap-3 text-sm">
-          <Link href="/" className="underline">Leads</Link>
-          <Link href="/dashboard" className="underline">Dashboard</Link>
-        </nav>
       </header>
       <p className="text-sm text-gray-500">
         {passCount}/{scored.length} fixtures matched the expected verdict. Two cases (T10,
