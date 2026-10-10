@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
   // Move the HubSpot deal from Inquiry to Needs Assessment or Closed Lost — the founder's
   // funnel view should reflect the human's call, not stay stuck wherever the AI left it.
-  await updateHubSpotAfterReview(call.hubspot_contact_id, call.hubspot_deal_id, final_decision);
+  await updateHubSpotAfterReview(call, final_decision);
 
   try {
     await query("update calls set verdict = $1, handoff_sent = $2 where id = $3", [

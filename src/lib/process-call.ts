@@ -94,8 +94,6 @@ export async function processCall(
   let handoff_note = result.handoff_note;
 
   if (data) {
-    hubspot = await syncCallToHubSpot(data);
-
     let calendar_event_id: string | null = null;
     let consultation_slot: string | null = null;
     if (result.verdict === "approved") {
@@ -114,6 +112,11 @@ export async function processCall(
         handoff_note += `\nConsultation booking failed: ${booking.error}`;
       }
     }
+
+    // Booking happens before the HubSpot sync (not after) so the deal's priority — derived
+    // from the same urgency logic as the Leads page — reflects the real consultation time
+    // instead of being computed before it existed.
+    hubspot = await syncCallToHubSpot({ ...data, consultation_slot });
 
     const handoff = await sendHandoffNote(handoff_note);
 

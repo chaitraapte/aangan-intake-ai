@@ -1,5 +1,6 @@
 import "server-only";
 import type { CallRecord, Verdict } from "./types";
+import { getUrgency } from "./urgency";
 
 // HubSpot is the FOUNDER's view: sales funnel only — how many leads, how many declined,
 // what's the pipeline worth. It deliberately does NOT hold project detail (transcript,
@@ -146,6 +147,10 @@ export async function syncCallToHubSpot(call: CallRecord): Promise<HubSpotSyncRe
             dealstage,
             amount: amount !== undefined ? String(amount) : undefined,
             revenue_tier: revenueTierFor(amount),
+            // Same urgency signal the Leads/Review queue pages color-code by (urgent/soon/
+            // flexible/none) — set once here so the HubSpot board can be colored to match,
+            // not a separate notion of "priority."
+            priority: getUrgency(call),
           },
           associations: [
             {
@@ -171,29 +176,31 @@ export async function syncCallToHubSpot(call: CallRecord): Promise<HubSpotSyncRe
 // Called when the front desk resolves a flagged call — moves the deal from Inquiry to
 // either Needs Assessment (approved) or Closed Lost (declined), and updates the contact's
 // status the same way the original sync would have if the verdict had been clear from the
-// start.
+// start. Also recomputes priority: a declined call needs no more action ("none"), and an
+// approved one that was never auto-booked a slot reads as "flexible" until someone schedules
+// it, rather than keeping whatever urgency it had while still sitting in the review queue.
 export async function updateHubSpotAfterReview(
-  contactId: string | null,
-  dealId: string | null,
+  call: CallRecord,
   finalDecision: "approved" | "declined"
 ): Promise<{ error: string | null }> {
   if (!process.env.HUBSPOT_ACCESS_TOKEN) return { error: null };
 
   try {
     const verdict: Verdict = finalDecision === "approved" ? "approved" : "hard_declined";
+    const priority = getUrgency({ ...call, verdict });
 
-    if (contactId) {
-      await hubspotFetch(`/crm/v3/objects/contacts/${contactId}`, {
+    if (call.hubspot_contact_id) {
+      await hubspotFetch(`/crm/v3/objects/contacts/${call.hubspot_contact_id}`, {
         method: "PATCH",
         body: JSON.stringify({ properties: { call_verdict: VERDICT_TO_CONTACT_STATUS[verdict] } }),
       });
     }
 
-    if (dealId) {
+    if (call.hubspot_deal_id) {
       const dealstage = dealStageFor(verdict);
-      await hubspotFetch(`/crm/v3/objects/deals/${dealId}`, {
+      await hubspotFetch(`/crm/v3/objects/deals/${call.hubspot_deal_id}`, {
         method: "PATCH",
-        body: JSON.stringify({ properties: { dealstage } }),
+        body: JSON.stringify({ properties: { dealstage, priority } }),
       });
     }
 
