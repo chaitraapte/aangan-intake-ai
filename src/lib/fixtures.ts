@@ -95,8 +95,8 @@ export const FIXTURES: Fixture[] = [
     transcript:
       "Hi, I have a question — I'm in a rented apartment, 2BHK in Baner. I've been here a year, 3-year lease, place is quite bare. I want to properly design the living room, bedroom, and kitchen — no structural changes, just design and fittings. My landlord is fine with it as long as we don't break walls.",
     callDate: "2026-09-12",
-    expectedVerdict: "flagged",
-    note: "revised expectation — this fixture never actually states a timeline or explicit sole-decision-maker confirmation (same as the real T11 transcript), so flagging to confirm those before booking is the correct conservative read, not a bug. Previously marked 'approved' incorrectly.",
+    expectedVerdict: "approved",
+    note: "landlord agreement is explicitly confirmed and no structural/wall changes are requested, so per docs/services.md's rented-home rule this is a clean approve, not a flag — a prior revision of this fixture marked it 'flagged' on the theory that missing timeline/decision-maker confirmation alone should block approval, but that contradicts how T13 (also no explicit timeline) is scored, and was reverted 2026-10-10.",
   },
   {
     id: "T12",
